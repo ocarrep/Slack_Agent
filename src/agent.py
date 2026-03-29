@@ -23,7 +23,7 @@ class SlackAnomalyAgent:
 
     def __init__(self):
         self.monitor = SlackMonitor(Config.SLACK_BOT_TOKEN, Config.SLACK_CHANNEL_ID)
-        self.classifier = AnomalyClassifier(Config.ANTHROPIC_API_KEY)
+        self.classifier = AnomalyClassifier(Config.GEMINI_API_KEY)
         self.jira = JiraTicketCreator(
             url=Config.JIRA_BASE_URL,
             email=Config.JIRA_EMAIL,
