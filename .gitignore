@@ -23,6 +23,14 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Claude Code
+.claude/
+
 # Logs
 *.log
 logs/
+
+# AWS SAM
+.aws-sam/
+samconfig.toml
+.env.json

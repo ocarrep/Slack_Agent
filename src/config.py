@@ -16,8 +16,8 @@ class Config:
     JIRA_PROJECT_KEY = os.environ.get("JIRA_PROJECT_KEY", "HELP")
     JIRA_ISSUE_TYPE_ID = os.environ.get("JIRA_ISSUE_TYPE_ID", "10142")
 
-    # Anthropic
-    ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
+    # Gemini
+    GEMINI_API_KEY = os.environ["GEMINI_API_KEY"]
 
     # Agent
     POLL_INTERVAL_SECONDS = int(os.environ.get("POLL_INTERVAL_SECONDS", "60"))

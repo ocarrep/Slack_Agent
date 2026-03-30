@@ -1,0 +1,11 @@
+{
+  "version": "0",
+  "id": "test-event-001",
+  "detail-type": "Scheduled Event",
+  "source": "aws.events",
+  "account": "123456789012",
+  "time": "2026-03-30T12:00:00Z",
+  "region": "eu-west-1",
+  "resources": ["arn:aws:events:eu-west-1:123456789012:rule/slack-agent-schedule"],
+  "detail": {}
+}

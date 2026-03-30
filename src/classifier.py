@@ -1,6 +1,6 @@
 import logging
 import json
-import anthropic
+from google import genai
 
 logger = logging.getLogger(__name__)
 
@@ -35,23 +35,28 @@ NE PAS qualifier comme anomalie :
 
 
 class AnomalyClassifier:
-    """Uses Claude to classify Slack messages as software anomalies or not."""
+    """Uses Gemini to classify Slack messages as software anomalies or not."""
 
     def __init__(self, api_key: str):
-        self.client = anthropic.Anthropic(api_key=api_key)
+        self.client = genai.Client(api_key=api_key)
 
     def classify(self, message_text: str, author: str) -> dict:
         """Classify a message and return structured result."""
         user_prompt = f"Auteur : {author}\nMessage : {message_text}"
 
         try:
-            response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=512,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": user_prompt}],
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=user_prompt,
+                config={
+                    "system_instruction": SYSTEM_PROMPT,
+                    "max_output_tokens": 512,
+                },
             )
-            content = response.content[0].text
+            content = response.text
+            # Strip markdown code fences if present
+            if content.startswith("```"):
+                content = content.split("\n", 1)[1].rsplit("```", 1)[0]
             result = json.loads(content)
             logger.info(
                 "Classification: is_anomaly=%s, confidence=%.2f",
@@ -62,6 +67,6 @@ class AnomalyClassifier:
         except json.JSONDecodeError:
             logger.error("Failed to parse classifier response: %s", content)
             return {"is_anomaly": False, "confidence": 0, "title": None, "summary": None, "severity": None}
-        except anthropic.APIError as e:
-            logger.error("Anthropic API error: %s", e)
+        except Exception as e:
+            logger.error("Gemini API error: %s", e)
             return {"is_anomaly": False, "confidence": 0, "title": None, "summary": None, "severity": None}
