@@ -1,0 +1,19 @@
+# Exclude from SAM package upload
+.git/
+.gitignore
+.claude/
+.env
+.env.local
+.env.example
+.env.json
+venv/
+.venv/
+__pycache__/
+*.pyc
+events/
+deploy.sh
+samconfig.toml
+README.md
+.DS_Store
+*.log
+logs/

@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  Slack Anomaly Agent — Monitors a Slack channel for software anomalies
+  and automatically creates Jira tickets.
+
+Globals:
+  Function:
+    Timeout: 90
+    Runtime: python3.12
+    MemorySize: 256
+    Architectures:
+      - arm64
+
+Parameters:
+  SlackBotToken:
+    Type: String
+    NoEcho: true
+    Description: Slack Bot OAuth token (xoxb-...)
+  SlackChannelId:
+    Type: String
+    Default: C0170HD1ASU
+    Description: Slack channel ID to monitor
+  JiraBaseUrl:
+    Type: String
+    Description: "Jira Cloud base URL (e.g. https://yourorg.atlassian.net)"
+  JiraEmail:
+    Type: String
+    Description: Jira account email
+  JiraApiToken:
+    Type: String
+    NoEcho: true
+    Description: Jira API token
+  JiraProjectKey:
+    Type: String
+    Default: HELP
+    Description: Jira project key for tickets
+  JiraIssueTypeId:
+    Type: String
+    Default: "10142"
+    Description: Jira issue type ID for anomaly tickets
+  GeminiApiKey:
+    Type: String
+    NoEcho: true
+    Description: Google Gemini API key
+  ScheduleRate:
+    Type: String
+    Default: "rate(1 minute)"
+    Description: EventBridge schedule expression
+
+Resources:
+  # --- SSM Parameter for timestamp persistence ---
+  LastTimestampParam:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: /slack-agent/last-timestamp
+      Type: String
+      Value: "0"
+      Description: Last processed Slack message timestamp
+
+  # --- Lambda Function ---
+  SlackAnomalyAgentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: slack-anomaly-agent
+      Handler: lambda_handler.handler
+      CodeUri: .
+      Description: Polls Slack for anomalies and creates Jira tickets
+      Environment:
+        Variables:
+          SLACK_BOT_TOKEN: !Ref SlackBotToken
+          SLACK_CHANNEL_ID: !Ref SlackChannelId
+          JIRA_BASE_URL: !Ref JiraBaseUrl
+          JIRA_EMAIL: !Ref JiraEmail
+          JIRA_API_TOKEN: !Ref JiraApiToken
+          JIRA_PROJECT_KEY: !Ref JiraProjectKey
+          JIRA_ISSUE_TYPE_ID: !Ref JiraIssueTypeId
+          GEMINI_API_KEY: !Ref GeminiApiKey
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - ssm:GetParameter
+                - ssm:PutParameter
+              Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/slack-agent/*"
+      Events:
+        ScheduleEvent:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref ScheduleRate
+            Description: Trigger Slack anomaly agent on schedule
+            Enabled: true
+
+  # --- CloudWatch Log Group (30-day retention) ---
+  AgentLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${SlackAnomalyAgentFunction}"
+      RetentionInDays: 30
+
+  # --- Alarm: too many errors ---
+  ErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: slack-anomaly-agent-errors
+      AlarmDescription: Fires when the agent Lambda has too many errors
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref SlackAnomalyAgentFunction
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+Outputs:
+  FunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt SlackAnomalyAgentFunction.Arn
+  FunctionName:
+    Description: Lambda function name
+    Value: !Ref SlackAnomalyAgentFunction
+  LogGroup:
+    Description: CloudWatch Log Group
+    Value: !Ref AgentLogGroup
